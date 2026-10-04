@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dự đoán Tài Xỉu - LC79</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body, html {
+            width: 100%; height: 100%; overflow: hidden;
+            background: #fff0f5;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            touch-action: manipulation;
+        }
+
+        /* LỚP NỀN TRANG WEB LC79 */
+        .game-frame {
+            width: 100%; height: 100%; border: none;
+            position: fixed; top: 0; left: 0; z-index: 1;
+            background: #ffffff;
+        }
+
+        /* LỚP MÀN HÌNH NHẬP KEY (MÀU HỒNG) */
+        #key-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #ffe6f0, #ffcce6, #ffb3d9);
+            z-index: 999999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #key-overlay.fade-out {
+            opacity: 0;
+            transform: scale(1.08);
+            pointer-events: none;
+        }
+
+        .key-card {
+            width: 100%;
+            max-width: 380px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 30px 24px;
+            box-shadow: 0 20px 40px rgba(219, 112, 147, 0.25);
+            border: 1px solid rgba(255, 182, 193, 0.6);
+            text-align: center;
+            position: relative;
+            transform: translateY(0);
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #key-overlay.fade-out .key-card {
+            transform: translateY(-20px);
+        }
+
+        .key-title {
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: #d81b60;
+            letter-spacing: 1.5px;
+            margin-bottom: 6px;
+        }
+
+        .key-subtitle {
+            font-size: 0.8rem;
+            color: #ad1457;
+            margin-bottom: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .avatar-container {
+            position: relative;
+            width: 90px;
+            height: 90px;
+            margin: 0 auto 20px auto;
+            border-radius: 50%;
+            padding: 3px;
+            background: linear-gradient(135deg, #ff69b4, #ff1493);
+            box-shadow: 0 0 15px rgba(255, 105, 180, 0.5);
+        }
+
+        .avatar-img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #fff;
+        }
+
+        .key-input-box {
+            width: 100%;
+            background: #ffffff;
+            border: 1px solid #f8bbd0;
+            border-radius: 12px;
+            padding: 12px 16px;
+            color: #880e4f;
+            text-align: center;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            outline: none;
+            margin-bottom: 15px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.03);
+            transition: all 0.2s;
+        }
+
+        .key-input-box:focus {
+            border-color: #ff1493;
+            box-shadow: 0 0 8px rgba(255, 20, 147, 0.3), inset 0 2px 4px rgba(0,0,0,0.03);
+        }
+
+        .key-input-box::placeholder {
+            color: #db7093;
+            font-weight: 400;
+        }
+
+        .login-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #ff69b4, #d81b60);
+            border: none;
+            border-radius: 12px;
+            padding: 12px;
+            color: #fff;
+            font-weight: 800;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+            cursor: pointer;
+            box-shadow: 0 6px 15px rgba(216, 27, 96, 0.35);
+            transition: transform 0.1s, opacity 0.2s;
+        }
+
+        .login-btn:active {
+            transform: scale(0.98);
+        }
+
+        .login-btn:hover {
+            opacity: 0.95;
+        }
+
+        .error-msg {
+            color: #d32f2f;
+            font-size: 0.75rem;
+            margin-top: 10px;
+            font-weight: 600;
+            min-height: 18px;
+        }
+
+        .footer-brand {
+            margin-top: 20px;
+            font-size: 0.7rem;
+            color: #880e4f;
+            letter-spacing: 0.5px;
+            font-weight: 700;
+            opacity: 0.85;
+        }
+
+        /* LỚP CHỨA CÁC BẢNG CÔNG NGHỆ NỔI SAU KHI ĐĂNG NHẬP */
+        #app-content {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 99999;
+            display: none;
+            opacity: 0;
+            transform: scale(0.95);
+            transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        #app-content.fade-in {
+            display: block;
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .drag-group {
+            position: fixed;
+            cursor: grab;
+            user-select: none;
+            pointer-events: auto;
+        }
+
+        @keyframes rimGlow {
+            0%, 100% { opacity: 0.6; filter: drop-shadow(0 0 4px #2a9df4); }
+            50% { opacity: 1; filter: drop-shadow(0 0 14px #2a9df4); }
+        }
+
+        .predict-card {
+            position: relative;
+            width: 320px;
+            border-radius: 16px;
+            padding: 14px;
+            background: linear-gradient(135deg, rgba(10, 25, 45, 0.95), rgba(5, 12, 25, 0.98));
+            backdrop-filter: blur(16px) saturate(180%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
+            border: 1px solid rgba(42, 157, 244, 0.5);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(42, 157, 244, 0.2);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .predict-card::before {
+            content: '';
+            position: absolute; inset: 0; border-radius: 16px; padding: 1px;
+            background: linear-gradient(135deg, #2a9df4, transparent 50%, #00f2fe);
+            -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            -webkit-mask-composite: xor; mask-composite: exclude;
+            animation: rimGlow 2s ease-in-out infinite; pointer-events: none;
+        }
+
+        .card-header { 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            margin-bottom: 8px;
+            border-bottom: 1px dashed rgba(42, 157, 244, 0.3);
+            padding-bottom: 8px;
+        }
+        
+        .card-title { 
+            font-size: 0.85rem; 
+            font-weight: 800; 
+            letter-spacing: 1px; 
+            color: #00f2fe; 
+            text-shadow: 0 0 8px rgba(42, 157, 244, 0.8);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* ĐOẠN HIỂN THỊ THỜI GIAN CÒN LẠI */
+        .card-timer-sub {
+            font-size: 0.7rem;
+            color: #ffb703;
+            font-weight: 600;
+            margin-bottom: 8px;
+            background: rgba(255, 183, 3, 0.1);
+            border: 1px solid rgba(255, 183, 3, 0.3);
+            border-radius: 6px;
+            padding: 4px 8px;
+            text-align: center;
+            letter-spacing: 0.5px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .logout-key-btn {
+            background: rgba(255, 165, 0, 0.2);
+            border: 1px solid rgba(255, 165, 0, 0.5);
+            color: #ffb703;
+            font-size: 0.65rem;
+            padding: 3px 6px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 700;
+            transition: all 0.2s;
+        }
+        .logout-key-btn:hover {
+            background: rgba(255, 165, 0, 0.4);
+            color: #fff;
+        }
+
+        .close-card-btn {
+            background: rgba(255, 50, 50, 0.2);
+            border: 1px solid rgba(255, 50, 50, 0.5);
+            color: #ff6b6b;
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .close-card-btn:hover {
+            background: rgba(255, 50, 50, 0.5);
+            color: #fff;
+        }
+
+        .input-section {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(42, 157, 244, 0.3);
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+
+        .input-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            color: #a0c4df;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .input-box {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(42, 157, 244, 0.4);
+            border-radius: 8px;
+            padding: 8px;
+            color: #fff;
+            text-align: center;
+            font-size: 0.85rem;
+            letter-spacing: 2px;
+            outline: none;
+            margin-bottom: 6px;
+        }
+        .input-box:focus {
+            border-color: #00f2fe;
+            box-shadow: 0 0 8px rgba(0, 242, 254, 0.4);
+        }
+
+        .analyze-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #2a9df4, #00f2fe);
+            border: none;
+            border-radius: 10px;
+            padding: 10px;
+            color: #000;
+            font-weight: 900;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            cursor: pointer;
+            box-shadow: 0 0 12px rgba(42, 157, 244, 0.6);
+            margin-bottom: 12px;
+            transition: transform 0.1s, opacity 0.2s;
+        }
+        .analyze-btn:active {
+            transform: scale(0.98);
+        }
+        .analyze-btn:hover {
+            opacity: 0.9;
+        }
+
+        .result-container {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(42, 157, 244, 0.3);
+            border-radius: 10px;
+            padding: 10px;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.7rem;
+            color: #a0c4df;
+            margin-bottom: 8px;
+        }
+
+        .result-brand {
+            color: #00f2fe;
+            font-weight: bold;
+        }
+
+        .result-boxes {
+            display: flex;
+            gap: 10px;
+        }
+
+        .res-box {
+            flex: 1;
+            background: rgba(10, 20, 35, 0.8);
+            border: 1px solid rgba(42, 157, 244, 0.4);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .res-name {
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .res-percent {
+            font-size: 1rem;
+            font-weight: 900;
+            color: #00f2fe;
+            margin-bottom: 6px;
+            text-shadow: 0 0 6px rgba(0, 242, 254, 0.6);
+        }
+
+        .res-bar-container {
+            width: 100%;
+            background: rgba(42, 157, 244, 0.2);
+            height: 4px;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .res-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: #00f2fe;
+            box-shadow: 0 0 6px #00f2fe;
+            transition: width 0.5s ease-in-out;
+        }
+
+        /* NÚT KÍCH HOẠT GÓC MÀN HÌNH */
+        .bow-trigger-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #00f2fe, #2a9df4);
+            border: 2px solid #bce6ff;
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.8), inset 0 2px 5px rgba(255, 255, 255, 0.6);
+            cursor: pointer;
+            z-index: 100000;
+            display: none;
+            opacity: 0;
+            transform: scale(0.5);
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s ease, box-shadow 0.2s;
+            pointer-events: auto;
+        }
+
+        .bow-trigger-btn.show {
+            display: flex;
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .bow-trigger-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 25px rgba(0, 242, 254, 1);
+        }
+    </style>
+</head>
+<body>
+
+    <iframe src="https://play.lc79.bet" class="game-frame"></iframe>
+
+    <!-- GIAO DIỆN NHẬP KEY MÀU HỒNG -->
+    <div id="key-overlay">
+        <div class="key-card">
+            <div class="key-title">NGO BAO NAM</div>
+            <div class="key-subtitle">
+                <span>🔒 Nhập Key Bản Quyền LC79</span>
+            </div>
+
+            <div class="avatar-container">
+                <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80" alt="Avatar" class="avatar-img">
+            </div>
+
+            <input type="text" class="key-input-box" id="licenseKeyInput" placeholder="Nhập key của bạn...">
+            <button class="login-btn" id="loginKeyBtn">ĐĂNG NHẬP</button>
+            <div class="error-msg" id="errorMsg"></div>
+            
+            <div class="footer-brand">©TOOL-LÀM GIÀU KIẾM lúa BNAM</div>
+        </div>
+    </div>
+
+    <!-- NÚT GÓC MÀN HÌNH -->
+    <div class="bow-trigger-btn" id="bowTriggerBtn" title="Bật/Tắt bảng dự đoán">
+        ⚡
+    </div>
+
+    <!-- CÁC BẢNG CÔNG NGHỆ NỔI ĐÈ LÊN TRÊN -->
+    <div id="app-content">
+        <!-- BẢNG DỰ ĐOÁN LC VIP -->
+        <div class="drag-group" id="drag-predict" style="top: 70px; left: 50%; transform: translateX(-50%);">
+            <div class="predict-card" id="predict-card-main">
+                <div class="card-header">
+                    <span class="card-title">⚡ LC VIP 2.1 ⚡</span>
+                    <div class="header-actions">
+                        <button class="logout-key-btn" id="logoutKeyBtn">ĐĂNG XUẤT</button>
+                        <button class="close-card-btn" id="closeCardBtn">×</button>
+                    </div>
+                </div>
+
+                <!-- HIỂN THỊ THỜI GIAN KEY CÒN LẠI -->
+                <div class="card-timer-sub" id="keyTimerDisplay">⏳ Thời gian key: Đang tải...</div>
+                
+                <!-- Ô NHẬP 7 SỐ PHIÊN -->
+                <div class="input-section">
+                    <div class="input-label">
+                        <span>🔢 NHẬP 7 SỐ PHIÊN</span>
+                        <span id="charCount">0/7</span>
+                    </div>
+                    <input type="text" class="input-box" id="sessionInput" maxlength="7" placeholder="N H Ậ P   7   S Ố">
+                </div>
+
+                <!-- Ô NHẬP CHUỖI T-X -->
+                <div class="input-section" style="margin-bottom: 8px;">
+                    <div class="input-label">
+                        <span> 🎯 HOẶC NHẬP CHUỖI T-X</span>
+                        <span>0</span>
+                    </div>
+                    <input type="text" class="input-box" id="stringInput" placeholder="V D :   T X X T X T X" style="font-size: 0.75rem; letter-spacing: 1px;">
+                </div>
+
+                <!-- NÚT PHÂN TÍCH -->
+                <button class="analyze-btn" id="analyzeBtn">⚡ PHÂN TÍCH LC ⚡</button>
+
+                <!-- KẾT QUẢ DỰ ĐOÁN -->
+                <div class="result-container">
+                    <div class="result-header">
+                        <span>KẾT QUẢ DỰ ĐOÁN</span>
+                        <span class="result-brand">LC ⚡</span>
+                    </div>
+                    <div class="result-boxes">
+                        <div class="res-box">
+                            <div class="res-name">TÀI</div>
+                            <div class="res-percent" id="taiPercent">0%</div>
+                            <div class="res-bar-container">
+                                <div class="res-bar-fill" id="taiBar"></div>
+                            </div>
+                        </div>
+                        <div class="res-box">
+                            <div class="res-name">XỈU</div>
+                            <div class="res-percent" id="xiuPercent">0%</div>
+                            <div class="res-bar-container">
+                                <div class="res-bar-fill" id="xiuBar"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let expiryTimer = null;
+        let countdownInterval = null;
+        const GRACE_PERIOD = 20 * 1000; // 20 giây chờ sau khi hết hạn trước khi văng ra
+
+        // ĐỊNH NGHĨA DANH SÁCH KEY VÀ THỜI HẠN TƯƠNG ỨNG (tính bằng mili-giây)
+        const KEY_DATABASE = {
+            "lc79-8226299concak": 1 * 60 * 60 * 1000,           // 1 giờ
+            "lc79-bucu82828":       24 * 60 * 60 * 1000,         // 1 ngày
+            "lc79-conchorac7999":   7 * 24 * 60 * 60 * 1000,     // 1 tuần
+            "lc79-ditmemay99162":   30 * 24 * 60 * 60 * 1000,    // 1 tháng (30 ngày)
+            "lc79-betvipprime":     365 * 24 * 60 * 60 * 1000    // 1 năm (365 ngày)
+        };
+
+        // HÀM CẬP NHẬT HIỂN THỊ ĐẾM NGƯỢC THỜI GIAN CÒN LẠI
+        function startCountdown(startTime, keyDuration) {
+            if (countdownInterval) clearInterval(countdownInterval);
+
+            countdownInterval = setInterval(() => {
+                const now = new Date().getTime();
+                const elapsed = now - startTime;
+                const remaining = keyDuration - elapsed;
+
+                const timerDisplay = document.getElementById('keyTimerDisplay');
+
+                if (remaining <= 0) {
+                    timerDisplay.innerText = '⏰ Key đã hết hạn! Sắp văng...';
+                    clearInterval(countdownInterval);
+                } else {
+                    const totalSeconds = Math.floor(remaining / 1000);
+                    const days = Math.floor(totalSeconds / (3600 * 24));
+                    const hours = Math.floor((totalSeconds % (3600 * 24)) / 3600);
+                    const minutes = Math.floor((totalSeconds % 3600) / 60);
+                    const seconds = totalSeconds % 60;
+
+                    let timeString = '';
+                    if (days > 0) timeString += `${days}n `;
+                    if (hours > 0 || days > 0) timeString += `${hours}h `;
+                    if (minutes > 0 || hours > 0 || days > 0) timeString += `${minutes}p `;
+                    timeString += `${seconds}s`;
+
+                    timerDisplay.innerText = `⏳ Key còn lại: ${timeString}`;
+                }
+            }, 1000);
+        }
+
+        // HÀM ẨN TOOL VÀ ĐƯA VỀ MÀN HÌNH NHẬP KEY
+        function forceLogout() {
+            localStorage.removeItem('bnam_key_time');
+            localStorage.removeItem('bnam_key_val');
+            localStorage.removeItem('bnam_key_dur');
+            if (expiryTimer) clearTimeout(expiryTimer);
+            if (countdownInterval) clearInterval(countdownInterval);
+
+            const overlay = document.getElementById('key-overlay');
+            const appContent = document.getElementById('app-content');
+            const bowBtn = document.getElementById('bowTriggerBtn');
+
+            appContent.classList.remove('fade-in');
+            bowBtn.classList.remove('show');
+
+            setTimeout(() => {
+                appContent.style.display = 'none';
+                overlay.style.display = 'flex';
+                overlay.classList.remove('fade-out');
+                document.getElementById('errorMsg').innerText = '❌ Key đã hết hạn! Đã bị văng ra ngoài.';
+            }, 300);
+        }
+
+        // HÀM CẤP QUYỀN TRUY CẬP VÀ ĐẶT LỊCH VĂNG SAU GRACE_PERIOD KỂ TỪ KHI HẾT HẠN
+        function grantAccess(savedTime, keyDuration) {
+            const overlay = document.getElementById('key-overlay');
+            const appContent = document.getElementById('app-content');
+            const bowBtn = document.getElementById('bowTriggerBtn');
+
+            overlay.classList.remove('fade-out');
+            overlay.style.display = 'flex';
+            document.getElementById('errorMsg').innerText = '';
+            
+            setTimeout(() => {
+                overlay.classList.add('fade-out');
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                    appContent.classList.add('fade-in');
+                    bowBtn.classList.add('show');
+                }, 550);
+            }, 50);
+
+            startCountdown(savedTime, keyDuration);
+
+            const now = new Date().getTime();
+            const elapsed = now - savedTime;
+            const totalTimeout = keyDuration + GRACE_PERIOD - elapsed;
+
+            if (expiryTimer) clearTimeout(expiryTimer);
+            expiryTimer = setTimeout(() => {
+                forceLogout();
+            }, totalTimeout > 0 ? totalTimeout : 0);
+        }
+
+        // KIỂM TRA TRẠNG THÁI KHI TẢI LẠI TRANG
+        function checkActiveKey() {
+            const savedTimeStr = localStorage.getItem('bnam_key_time');
+            const savedKey = localStorage.getItem('bnam_key_val');
+            const savedDurStr = localStorage.getItem('bnam_key_dur');
+            
+            if (savedTimeStr && savedKey && KEY_DATABASE[savedKey]) {
+                const savedTime = parseInt(savedTimeStr);
+                const keyDuration = parseInt(savedDurStr || KEY_DATABASE[savedKey]);
+                const now = new Date().getTime();
+                const elapsed = now - savedTime;
+
+                if (elapsed < keyDuration + GRACE_PERIOD) {
+                    const overlay = document.getElementById('key-overlay');
+                    const appContent = document.getElementById('app-content');
+                    const bowBtn = document.getElementById('bowTriggerBtn');
+                    
+                    overlay.style.display = 'none';
+                    appContent.classList.add('fade-in');
+                    bowBtn.classList.add('show');
+
+                    startCountdown(savedTime, keyDuration);
+
+                    const totalTimeout = keyDuration + GRACE_PERIOD - elapsed;
+                    expiryTimer = setTimeout(() => {
+                        forceLogout();
+                    }, totalTimeout > 0 ? totalTimeout : 0);
+
+                } else {
+                    localStorage.removeItem('bnam_key_time');
+                    localStorage.removeItem('bnam_key_val');
+                    localStorage.removeItem('bnam_key_dur');
+                }
+            }
+        }
+        checkActiveKey();
+
+        // XỬ LÝ SỰ KIỆN ĐĂNG NHẬP KEY
+        document.getElementById('loginKeyBtn').addEventListener('click', () => {
+            const val = document.getElementById('licenseKeyInput').value.trim();
+            const err = document.getElementById('errorMsg');
+
+            if (KEY_DATABASE[val]) {
+                const currentTime = new Date().getTime();
+                const keyDuration = KEY_DATABASE[val];
+
+                localStorage.setItem('bnam_key_val', val);
+                localStorage.setItem('bnam_key_time', currentTime.toString());
+                localStorage.setItem('bnam_key_dur', keyDuration.toString());
+
+                document.getElementById('licenseKeyInput').value = '';
+                grantAccess(currentTime, keyDuration);
+            } else {
+                err.innerText = '❌ Key không hợp lệ! Vui lòng kiểm tra lại.';
+                setTimeout(() => { err.innerText = ''; }, 3000);
+            }
+        });
+
+        // Hỗ trợ nhấn Enter để đăng nhập nhanh
+        document.getElementById('licenseKeyInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('loginKeyBtn').click();
+            }
+        });
+
+        // XỬ LÝ NÚT ĐĂNG XUẤT THỦ CÔNG
+        document.getElementById('logoutKeyBtn').addEventListener('click', () => {
+            if (expiryTimer) clearTimeout(expiryTimer);
+            if (countdownInterval) clearInterval(countdownInterval);
+            localStorage.removeItem('bnam_key_time');
+            localStorage.removeItem('bnam_key_val');
+            localStorage.removeItem('bnam_key_dur');
+
+            const overlay = document.getElementById('key-overlay');
+            const appContent = document.getElementById('app-content');
+            const bowBtn = document.getElementById('bowTriggerBtn');
+
+            appContent.classList.remove('fade-in');
+            bowBtn.classList.remove('show');
+
+            setTimeout(() => {
+                appContent.style.display = 'none';
+                overlay.style.display = 'flex';
+                overlay.classList.remove('fade-out');
+                document.getElementById('errorMsg').innerText = '';
+            }, 300);
+        });
+
+        const bowBtn = document.getElementById('bowTriggerBtn');
+        const mainCard = document.getElementById('predict-card-main').parentElement;
+        const closeCardBtn = document.getElementById('closeCardBtn');
+        const sessionInput = document.getElementById('sessionInput');
+        const charCount = document.getElementById('charCount');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+
+        // Ẩn hiện bảng khi bấm nút góc
+        bowBtn.addEventListener('click', () => {
+            mainCard.style.display = mainCard.style.display === 'none' ? 'block' : 'none';
+        });
+
+        closeCardBtn.addEventListener('click', () => {
+            mainCard.style.display = 'none';
+        });
+
+        // Đếm ký tự ô nhập 7 số phiên
+        sessionInput.addEventListener('input', (e) => {
+            let val = e.target.value.replace(/\D/g, '');
+            e.target.value = val;
+            charCount.innerText = val.length + '/7';
+        });
+
+        // Xử lý nút phân tích ngẫu nhiên tỷ lệ Tài/Xỉu
+        analyzeBtn.addEventListener('click', () => {
+            let taiVal = Math.floor(Math.random() * 60) + 20; 
+            let xiuVal = 100 - taiVal;
+
+            document.getElementById('taiPercent').innerText = taiVal + '%';
+            document.getElementById('taiBar').style.width = taiVal + '%';
+
+            document.getElementById('xiuPercent').innerText = xiuVal + '%';
+            document.getElementById('xiuBar').style.width = xiuVal + '%';
+        });
+
+        // Kéo thả mượt mà cho bảng nổi
+        const group = document.getElementById('drag-predict');
+        let isDragging = false;
+        let startX, startY, initialX, initialY;
+
+        group.addEventListener('pointerdown', (e) => {
+            if (e.target.closest('input') || e.target.closest('button')) return;
+            
+            isDragging = true;
+            group.setPointerCapture(e.pointerId);
+            startX = e.clientX;
+            startY = e.clientY;
+            
+            const rect = group.getBoundingClientRect();
+            initialX = rect.left;
+            initialY = rect.top;
+            
+            group.style.cursor = 'grabbing';
+        });
+
+        group.addEventListener('pointermove', (e) => {
+            if (!isDragging) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            
+            group.style.left = `${initialX + dx}px`;
+            group.style.top = `${initialY + dy}px`;
+            group.style.transform = 'none'; 
+        });
+
+        group.addEventListener('pointerup', (e) => {
+            isDragging = false;
+            group.releasePointerCapture(e.pointerId);
+            group.style.cursor = 'grab';
+        });
+    </script>
+</body>
+</html>
